@@ -385,7 +385,7 @@ function go(r){location.hash='#/'+r}
 window.addEventListener('hashchange',route);
 function route(){let r=(location.hash.slice(2)||'').split('?')[0]||'login';
   if(!S.code&&r!=='login'&&r!=='koniec')r='login';
-  if(S.role==='rodzic'&&!['rodzic','motyw','koniec','login'].includes(r))r='rodzic';if(S.role!=='rodzic'&&r==='rodzic')r='lista';
+  if(S.role==='rodzic'&&!['rodzic','motyw','koniec','login','uwagi'].includes(r))r='rodzic';if(S.role!=='rodzic'&&r==='rodzic')r='lista';
   if(DIRONLY.includes(r)&&!isDir()&&!(isSen()&&SENOK.includes(r)))r='lista';if(r==='uprawnienia'&&(isGuest()||!isDir()))r='lista';
   if(r==='wybor'&&isDir())r='zarzadzanie';if((r==='admin'||r==='statystyki')&&!isAdm())r=isDir()?'pulpit':'lista';if(r!=='czat')thread=null;if(isGuest()&&!['obecnosc','linki','motyw','koniec','login'].includes(r))r='obecnosc';
   if(r!==cur){track('screen_open',r);if(['zarzadzanie','motyw','admin','statystyki'].includes(r)&&isDir())track('setting_open',r)}
@@ -401,7 +401,7 @@ function notes(){const n=[];if(!S.code)return n;
 function dayTwo(){const y=new Date(todayStr());y.setDate(y.getDate()-1);const ys=y.toISOString().slice(0,10);
   return DB.test_children.filter(c=>{const a=att(c.id,'przyjecie'),b=att(c.id,'przyjecie',ys);const ill=d=>evDay(c.id,d).some(e=>e.type==='goraczka'||e.type==='katar');return (a&&b&&a.mood==='s'&&b.mood==='s')||(ill(todayStr())&&ill(ys))})}
 function drawer(){const items=isDir()?[['pulpit','Pulpit'],['obecnosc','Obecność'],['zarzadzanie','Lista zajęć'],['dwor','Wyjście na dwór'],['linki','Linki'],['miejsca','Miejsca wyjść'],['czat','Wiadomości'],['motyw','Motyw']]:[['linki','Linki'],['czat','Wiadomości'],['motyw','Motyw'],['lista','Lista obecności'],['dwor','Wyjście na dwór'],['wybor','Wybór zajęć'],['motyw','Motyw']];
-  if(canManage()&&!isDir())items.push(['zarzadzanie','Zarządzanie zajęciami'],['miejsca','Miejsca wyjść'],['obecnosc','Obecność – obie grupy']);if(!isGuest())items.unshift(['karta','📒 Karty dnia'],['kuchnia','🍲 Kuchnia'],['rodzice','👪 Rodzice – czat'],['uwagi',isAdm()?'✉️ Uwagi – skrzynka':'✉️ Uwagi / prośby / zmiany']);if(S.role==='rodzic')items.splice(0,items.length,['rodzic','Mój żłobek'],['motyw','Motyw']);if(isDir()&&!isGuest())items.push(['uprawnienia','Uprawnienia']);if(!isGuest())items.push(['__pw','Zmień hasło']);if(isAdm())items.unshift(['admin','Admin'],['lista','Listy dzieci']);modal('drawer',`<div class="h1s">żłobek-Malachim</div><div class="muted">${esc(isGuest()?'Gość – podgląd':isAdm()?'Admin – Michał':isDir()?((SESS()||{}).display_name||'Dyrektorka'):((SESS()||{}).display_name||staffName(S.code))+(isSen()?' · starsza opiekunka':'')+' · '+gName(myGrp()))}</div>${items.map(([r,l])=>`<button class="b2" onclick="closeM();${r==='__pw'?'pwForm()':`go('${r}')`}">${l}</button>`).join('')}<span class="sp"></span><button class="b1" onclick="closeM();koniec()">⏻ Koniec pracy</button>`)}
+  if(canManage()&&!isDir())items.push(['zarzadzanie','Zarządzanie zajęciami'],['miejsca','Miejsca wyjść'],['obecnosc','Obecność – obie grupy']);if(!isGuest())items.unshift(['karta','📒 Karty dnia'],['kuchnia','🍲 Kuchnia'],['rodzice','👪 Rodzice – czat'],['uwagi',isAdm()?'✉️ Uwagi – skrzynka':'✉️ Uwagi o aplikacji / prośby']);if(S.role==='rodzic')items.splice(0,items.length,['rodzic','Mój żłobek'],['uwagi','📱 Uwagi o aplikacji'],['motyw','Motyw']);if(isDir()&&!isGuest())items.push(['uprawnienia','Uprawnienia']);if(!isGuest())items.push(['__pw','Zmień hasło']);if(isAdm())items.unshift(['admin','Admin'],['lista','Listy dzieci']);modal('drawer',`<div class="h1s">żłobek-Malachim</div><div class="muted">${esc(isGuest()?'Gość – podgląd':isAdm()?'Admin – Michał':isDir()?((SESS()||{}).display_name||'Dyrektorka'):((SESS()||{}).display_name||staffName(S.code))+(isSen()?' · starsza opiekunka':'')+' · '+gName(myGrp()))}</div>${items.map(([r,l])=>`<button class="b2" onclick="closeM();${r==='__pw'?'pwForm()':`go('${r}')`}">${l}</button>`).join('')}<span class="sp"></span><button class="b1" onclick="closeM();koniec()">⏻ Koniec pracy</button>`)}
 function notif(){const n=notes();sheet(`<div class="h1s">Powiadomienia</div>${n.length?n.map(x=>`<div class="card">${esc(x)}</div>`).join(''):'<div class="muted">Brak nowych powiadomień.</div>'}<button class="b2" onclick="closeM()">Zamknij</button>`)}
 function modal(cls,h){closeM();const d=document.createElement('div');d.className=cls;d.id='mod';d.innerHTML='<div>'+h+'</div>';d.onclick=e=>{if(e.target===d)closeM()};document.getElementById('app').appendChild(d)}
 const sheet=h=>modal('sheetm',h), closeM=()=>{const m=document.getElementById('mod');m&&m.remove()};
@@ -574,11 +574,11 @@ function lessonForm(){sheet(`<div class="h1s">Nowe zajęcia</div><input id="lm" 
 async function koniec(){if(tok()&&sb)sb.rpc('logout',{tok:tok()}).then(()=>{},()=>{});localStorage.removeItem('zl_sess');localStorage.setItem('zl_lastrole',S.role);const c=S.code;localStorage.removeItem('zl_code');localStorage.removeItem('zl_role');go('koniec');
   if(c!=='G'&&c!=='A'&&!String(c).startsWith('R:'))Sync.upsert('test_endofday',{id:uid(),staff_code:c,day:todayStr(),at:now().toISOString(),illustration:new Date().getDay()})}
 // ==== PARENT FEATURES (karta dnia, kuchnia, profil, rodzic, uwagi) ====
-const NEWT=['test_daycard','test_menu','test_child_profile','test_absences','test_child_media','test_parent_msgs','test_admin_inbox','test_parent_child'];
+const NEWT=['test_daycard','test_menu','test_child_profile','test_absences','test_child_media','test_parent_msgs','test_admin_inbox'];
 NEWT.forEach(t=>{if(!TABLES.includes(t))TABLES.push(t)});Object.assign(KEYS,{test_child_profile:'child_id',test_parent_child:'login'});
 const NEWOK=()=>Sync.ok.has('test_daycard');const BUCKET='dzieci';
 const isPar=()=>S.role==='rodzic';
-const pendSQL=()=>NEWOK()?'':'<div class="banner pz">🛠 Tryb próbny: zapis tylko na tym telefonie (czeka na aktualizację bazy)</div>';
+const pendSQL=()=>NEWOK()?'':'<div class="banner pz">⚠️ Brak połączenia z bazą – odśwież stronę</div>';
 const sc=(bg,inner)=>`<svg viewBox="0 0 64 64" class="pic"><rect x="2" y="2" width="60" height="60" rx="16" fill="${bg}"/>${inner}</svg>`;
 const IC={
  meal:sc('#FFE7C2','<ellipse cx="32" cy="40" rx="22" ry="8" fill="#fff" stroke="#c98a3a" stroke-width="2"/><ellipse cx="32" cy="37" rx="12" ry="5" fill="#F6B04A"/><circle cx="27" cy="35" r="3" fill="#7BC67E"/><circle cx="37" cy="35" r="2.5" fill="#E85D5D"/><path d="M14 14v14M18 14v14M16 28v10" stroke="#888" stroke-width="2"/><path d="M48 14c4 0 4 12 0 14v10" stroke="#888" stroke-width="2" fill="none"/>'),
@@ -777,6 +777,102 @@ SCR.rodzic=()=>{if(P.child===undefined){P.child=false;setTimeout(()=>pLoad('chil
   return ['Mój żłobek','',b]};
 setInterval(()=>{if(isPar()&&cur==='rodzic'&&P.child&&document.visibilityState==='visible'){const t=window._ptab||'dzien';if(t==='czat'||t==='dzien')pLoad(t)}},60000);
 
+// ==== FULL TEST: uwagi o aplikacji + e-mail, osoby upoważnione do odbioru, licencje, imiona ====
+const MAIL_TO='michal@malachim.nl'; // po aktywacji FormSubmit można podmienić na losowy alias z e-maila aktywacyjnego
+const UK2=[['aplikacja','📱 Uwagi o aplikacji'],...UK];
+const roleName=r=>({rodzic:'rodzic',opiekunka:'opiekunka',starsza:'starsza opiekunka',dyrektor:'dyrektor',admin:'admin'})[r]||r||'?';
+async function mailOut(kind,body,id){try{const se=SESS()||{};
+  const r=await fetch('https://formsubmit.co/ajax/'+MAIL_TO,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({
+    _subject:'żłobek-Malachim TEST – '+((UK2.find(k=>k[0]===kind)||[,kind])[1]).replace(/^\S+\s/,''),_template:'table',_captcha:'false',
+    'Rodzaj':(UK2.find(k=>k[0]===kind)||[,kind])[1],'Od':(se.display_name||'?')+' ('+(se.login||'?')+')','Rola':roleName(se.role),'Treść':body,'Środowisko':'TEST – '+location.href.split('#')[0],'Data':new Date().toLocaleString('pl-PL')})});
+  const j=await r.json().catch(()=>({}));const ok=String(j.success)==='true';
+  if(ok&&id&&sb)await sb.rpc('feedback_emailed',{tok:tok(),msg_id:id}).then(()=>{},()=>{});return ok}catch(e){return false}}
+let FB_MINE=null;
+async function sendFeedback(){const t=document.getElementById('utxt');const b=(t&&t.value||'').trim();if(!b)return toast('Wpisz treść');
+  if((document.getElementById('uhp')||{}).value)return; // honeypot (spam)
+  const last=+localStorage.getItem('zl_fb_last')||0;if(Date.now()-last<30000)return toast('Odczekaj chwilę przed kolejną wiadomością');
+  const k=(document.querySelector('#ukk .on')||{}).dataset?.k||'aplikacja';const btn=document.getElementById('ubtn');if(btn)btn.disabled=true;
+  let id=null,viaRpc=false;const {data,error}=sb?await sb.rpc('submit_feedback',{tok:tok(),kind:k,body:b.slice(0,2000)}):{error:{message:'offline'}};
+  if(!error&&data){id=data;viaRpc=true}
+  else if(error&&/LIMIT/.test(error.message)){if(btn)btn.disabled=false;return toast('Za dużo wiadomości – spróbuj za godzinę')}
+  else if(!isPar()&&error&&/function|schema cache|PGRST202/i.test(error.message)){const kk=k==='aplikacja'?'uwaga':k;const row=await Sync.upsert('test_admin_inbox',{id:uid(),from_code:S.code,from_name:(SESS()||{}).display_name||staffName(S.code),kind:kk,body:b.slice(0,2000),created_at:new Date().toISOString(),read_at:null,emailed_at:null});id=row.id}
+  else if(!isPar()){if(btn)btn.disabled=false;return toast('Błąd: '+(error?error.message:'brak sesji'))}
+  localStorage.setItem('zl_fb_last',Date.now());t.value='';
+  const m=await mailOut(k,b.slice(0,2000),viaRpc?id:null);
+  if(!viaRpc&&m&&id&&!isPar()){const r=(DB.test_admin_inbox||[]).find(x=>x.id===id);if(r)Sync.upsert('test_admin_inbox',{...r,emailed_at:new Date().toISOString()})}
+  toast(m?'Wysłano ✓ (aplikacja + e-mail)':(id?'Zapisano ✓ (e-mail chwilowo niedostępny)':'Nie udało się wysłać'));track('uwaga',k);FB_MINE=null;render()}
+async function loadMine(){const r=sb?await sb.rpc('feedback_mine',{tok:tok()}):{error:1};FB_MINE=r.error?false:(r.data||[]);render()}
+// --- licencje + tryb imion (tylko super-admin; serwer sprawdza rolę) ---
+let LIC=null;async function loadLic(){const r=await sb.rpc('license_list',{tok:tok()});LIC=r.error?{err:/function|schema|PGRST202/i.test(r.error.message)?'SQL':r.error.message}:(r.data||{err:'Brak uprawnień super-admina'});render()}
+async function licSet(id,g){const note=prompt(g?'Notatka do nadania licencji dożywotniej (darmowej):':'Powód cofnięcia licencji:');if(note===null)return;
+  const r=await sb.rpc('license_set',{tok:tok(),nursery:id,grant_it:g,note});toast(r.error?'Błąd: '+r.error.message:'Zapisano');loadLic()}
+async function namesSet(id,on){if(!confirm(on?'Włączyć prawdziwe imiona dzieci w aplikacji personelu?':'Wrócić do pseudonimów?'))return;
+  const r=await sb.rpc('names_set_mode',{tok:tok(),nursery:id,on_:on,note:null});toast(r.error?'Błąd: '+r.error.message:'Zapisano');loadLic();loadNames()}
+async function idImport(dry){const f=document.getElementById('idcsv');const csv=f&&f.value;if(!csv)return toast('Wklej CSV');
+  const r=await sb.rpc('identity_import',{tok:tok(),csv,dry_run:dry});if(r.error)return toast('Błąd: '+r.error.message);
+  const d=r.data;document.getElementById('idrep').innerHTML=`<div class="mm"><b>${dry?'Próba (nic nie zapisano)':'Zaimportowano'}: ${d.ok} OK</b></div>`+(d.rows||[]).map(x=>`<div class="mm">wiersz ${x.line}: ${esc(x.pseudonym||'')} – ${esc(x.status)}</div>`).join('');if(!dry)loadNames()}
+const licCard=()=>{if(!isAdm())return '';if(LIC===null){setTimeout(loadLic,0);return '<div class="card"><div class="muted">Licencje: ładowanie…</div></div>'}
+  if(LIC.err)return `<div class="card"><div class="h1s">🔑 Licencje placówek</div><div class="muted">${LIC.err==='SQL'?'Czeka na uruchomienie sql/full_test.sql':esc(LIC.err)}</div></div>`;
+  return `<div class="card"><div class="h1s">🔑 Licencje placówek (super-admin)</div>${(LIC.nurseries||[]).map(n=>`<div class="card"><b>${esc(n.name)}</b><div class="mm">Licencja: <b>${n.license==='dozywotnia_darmowa'?'✅ dożywotnia (darmowa)':'— brak'}</b>${n.license_since?' · od '+dmy(n.license_since)+' · '+esc(n.license_by||''):''}</div>${n.license_note?`<div class="mm">${esc(n.license_note)}</div>`:''}
+   <button class="b2" onclick="licSet('${esc(n.id)}',${n.license!=='dozywotnia_darmowa'})">${n.license==='dozywotnia_darmowa'?'Cofnij licencję':'Nadaj licencję dożywotnią (darmową)'}</button>
+   <div class="mm">Imiona dzieci: <b>${n.use_real_names?'prawdziwe':'pseudonimy'}</b></div><button class="b2" onclick="namesSet('${esc(n.id)}',${!n.use_real_names})">${n.use_real_names?'↩️ Wróć do pseudonimów':'👤 Włącz prawdziwe imiona'}</button></div>`).join('')}
+   <details><summary class="mm">📥 Import imion (CSV: pseudonym;imię;nazwisko)</summary><textarea id="idcsv" rows="4" style="width:100%" placeholder="pseudonym;imię;nazwisko;data_urodzenia;rodzic1;rodzic2"></textarea><button class="b2" onclick="idImport(true)">Sprawdź (próba)</button><button class="b1" onclick="if(confirm('Zapisać dane?'))idImport(false)">Importuj</button><div id="idrep"></div></details>
+   <details><summary class="mm">Dziennik zmian licencji</summary>${(LIC.audit||[]).map(a=>`<div class="mm">${dmy(a.at)} ${hm(a.at)} · ${esc(a.nursery_id)} · <b>${esc(a.action)}</b> · ${esc(a.by_login)}${a.note?' · '+esc(a.note):''}</div>`).join('')||'<div class="muted">Brak wpisów.</div>'}</details></div>`};
+const _adm=SCR.admin;SCR.admin=()=>{const r=_adm();r[2]=licCard()+r[2];return r};
+// --- imiona: pseudonim w bazie zostaje, wyświetlanie przez RPC staff_child_names ---
+let NAMES={};async function loadNames(){if(!sb||isPar()||!tok())return;const r=await sb.rpc('staff_child_names',{tok:tok()});NAMES=(!r.error&&r.data&&r.data.use_real_names)?r.data.names||{}:{};applyNames();render()}
+function applyNames(){(DB.test_children||[]).forEach(c=>{const n=NAMES[c.id];if(c._pseudo===undefined)c._pseudo=c.pseudonym;c.pseudonym=n?n.display:c._pseudo})}
+const _ups=Sync.upsert.bind(Sync);Sync.upsert=async function(t,row){if(t==='test_children'&&row&&row._pseudo!==undefined){const r={...row};if(NAMES[r.id])r.pseudonym=r._pseudo;delete r._pseudo;return _ups(t,r)}return _ups(t,row)};
+Sync.on(t=>{if(t==='test_children'&&Object.keys(NAMES).length){applyNames()}});
+// --- uwagi: ekran dla wszystkich ról ---
+SCR.uwagi=()=>{const form=(kinds)=>`<div class="card"><div class="arow"><div class="mki big">${IC.mail}</div><div><div class="h1s">${isPar()?'Uwagi o aplikacji':'Do Michała (admin)'}</div><div class="muted">Trafia do aplikacji i na e-mail</div></div></div><div class="bgrid" id="ukk">${kinds.map(([k,n],i)=>`<button class="b2 ${i?'':'on'}" data-k="${k}" onclick="this.parentNode.querySelectorAll('button').forEach(b=>b.classList.remove('on'));this.classList.add('on')">${n}</button>`).join('')}</div><textarea id="utxt" rows="4" maxlength="2000" placeholder="Co działa źle, co poprawić, czego brakuje?" style="width:100%;font-size:18px"></textarea><input id="uhp" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true"><button class="b1 big2" id="ubtn" onclick="sendFeedback()">Wyślij</button></div>`;
+  if(isAdm()){const L=inbox();return ['Uwagi – skrzynka','',`${form(UK2)}${L.map(m=>`<div class="card ${m.read_at?'':'urgc'}"><div class="mm"><b>${(UK2.find(k=>k[0]===m.kind)||[,''])[1]}</b> · ${esc(m.from_name||m.from_code)}${m.from_role?' ('+esc(roleName(m.from_role))+')':''} · ${esc(ld(m.created_at).slice(5).split('-').reverse().join('.'))} ${hm(m.created_at)}${m.emailed_at?' · ✉️':''}</div><div class="mbody">${esc(m.body)}</div>${m.read_at?'':`<button class="b2" onclick="Sync.upsert('test_admin_inbox',{...inbox().find(x=>x.id==='${m.id}'),read_at:new Date().toISOString()})">✓ Przeczytane</button>`}</div>`).join('')||'<div class="muted">Pusto.</div>'}`]}
+  if(FB_MINE===null){FB_MINE=undefined;setTimeout(loadMine,0)}
+  const mine=Array.isArray(FB_MINE)?FB_MINE:isPar()?[]:inbox().filter(m=>m.from_code===S.code).map(m=>({kind:m.kind,body:m.body,at:m.created_at,read:!!m.read_at,emailed:!!m.emailed_at}));
+  return [isPar()?'Uwagi o aplikacji':'Uwagi / prośby','',`${form(isPar()?UK2.slice(0,1):UK2)}${mine.map(m=>`<div class="card"><div class="mm">${(UK2.find(k=>k[0]===m.kind)||[,''])[1]} · ${dmy(m.at)} ${hm(m.at)}${m.emailed?' · ✉️':''}${m.read?' · ✓ przeczytane':''}</div><div class="mbody">${esc(m.body)}</div></div>`).join('')}`]};
+// --- RODZIC: osoby upoważnione do odbioru ---
+const DOCT={dowod:'Dowód osobisty',paszport:'Paszport',prawo_jazdy:'Prawo jazdy',inny:'Inny dokument'};
+P.pick=null;async function pLoadPick(){const r=await pcall('parent_list_pickup');P.pick=r.e?{err:r.e}:(r.d||[]);render()}
+async function pAddPick(){const g=id=>(document.getElementById(id)||{}).value.trim();const a={first_name:g('pk1'),last_name:g('pk2'),doc_type:g('pk3'),doc_number:g('pk4')};
+  if(!a.first_name||!a.last_name||a.doc_number.length<4)return toast('Uzupełnij imię, nazwisko i numer dokumentu');const r=await pcall('parent_add_pickup',a);
+  if(!r.d)return toast('Nie dodano (max 10 osób)');window._pkSel=r.d;toast('Dodano ✓');pLoadPick()}
+async function pDelPick(id){if(!confirm('Usunąć osobę z listy upoważnionych?'))return;await pcall('parent_remove_pickup',{person_id:id});pLoadPick()}
+async function pSendPick(){const sel=(document.querySelector('[name=pks]:checked')||{}).value;if(!sel)return toast('Wybierz osobę z listy');
+  const r=await pcall('parent_set_pickup',{d:document.getElementById('pfd').value,person_id:sel,pickup_time:document.getElementById('pft').value||null,body:document.getElementById('pfb').value||null});
+  toast(r.d?'Wysłano ✓':'Nie udało się wysłać');if(r.d){window._pform=null;P.forms=null;pLoad('formy')}}
+const pickForm=()=>{const L=P.pick;if(!L){setTimeout(pLoadPick,0);return '<div class="muted">Ładowanie…</div>'}
+  return `<div class="card"><div class="h1s">🚗 Odbiór przez osobę upoważnioną / zmiana godziny</div><label class="mm" for="pfd">Dzień</label><input id="pfd" type="date" min="${todayStr()}" value="${todayStr()}"><label class="mm" for="pft">Godzina odbioru</label><input id="pft" type="time">
+  <div class="mm"><b>Kto odbiera</b> (lista osób upoważnionych)</div>${L.map(p=>`<label class="chk"><input type="radio" name="pks" value="${p.id}" ${window._pkSel===p.id?'checked':''}>${esc(p.first_name+' '+p.last_name)} · ${esc(DOCT[p.doc_type]||p.doc_type)} •••• ${esc(p.doc_last4)}<span class="sp"></span><button class="tbtn" aria-label="Usuń" onclick="event.preventDefault();pDelPick('${p.id}')">✕</button></label>`).join('')||'<div class="muted">Brak osób – dodaj poniżej.</div>'}
+  <details ${L.length?'':'open'}><summary class="mm">➕ Dodaj nową osobę</summary><input id="pk1" maxlength="60" placeholder="Imię"><input id="pk2" maxlength="80" placeholder="Nazwisko"><select id="pk3">${Object.entries(DOCT).map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select><input id="pk4" maxlength="30" placeholder="Numer dokumentu" autocomplete="off"><button class="b2" onclick="pAddPick()">Dodaj do listy</button></details>
+  <textarea id="pfb" rows="2" maxlength="1000" placeholder="Dodatkowe informacje"></textarea><button class="b1" onclick="pSendPick()">Wyślij</button><button class="b2" onclick="window._pform=null;render()">Anuluj</button></div><div class="muted">Personel sprawdzi dokument tożsamości przy odbiorze. Numer dokumentu widzi w całości tylko dyrekcja.</div>`};
+const _rod=SCR.rodzic;SCR.rodzic=()=>{const r=_rod();if(P.child&&(window._ptab||'dzien')==='formy'&&window._pform==='odbior'&&!(P.pick&&P.pick.err)){const i=r[2].lastIndexOf('<div class="card"><div class="h1s">🚗');if(i>=0)r[2]=r[2].slice(0,i)+pickForm()}
+  if(P.child)r[2]+=`<button class="b2" onclick="go('uwagi')">📱 Uwagi o aplikacji</button>`;return r};
+// rodzic: zdjęcia bez Edge Function – podpisane linki (1h) dla ścieżek zwróconych przez parent_list_media
+const _pSign=pSign;pSign=async function(rows){await _pSign(rows);const need=rows.filter(r=>!String(r.path).startsWith('demo:')&&!pUrl[r.path]).map(r=>r.path);
+  if(need.length&&sb){const {data}=await sb.storage.from(BUCKET).createSignedUrls(need,3600);(data||[]).forEach(d=>{if(d.signedUrl)pUrl[d.path]=d.signedUrl})}};
+// --- PERSONEL: „Dziś odbiera”, potwierdzenie dokumentu ---
+let PICK=[];async function loadPick(){if(!sb||isPar()||!tok())return;const r=await sb.rpc('staff_pickup_today',{tok:tok(),d:todayStr()});if(!r.error){PICK=r.data||[];if(cur!=='login')render()}}
+const pickOf=id=>PICK.find(p=>p.child_id===id);
+const pickBadge=id=>{const p=pickOf(id);return p?`<div class="pkb" style="flex-basis:100%;font-size:14px;background:#FFF3CD;border-radius:10px;padding:3px 8px;margin-top:4px">🚗 Dziś odbiera: <b>${esc(p.name)}</b> · ${esc(DOCT[p.doc_type]||'')} ${esc(p.doc)}${p.pickup_time?' · '+esc(p.pickup_time):''}${p.checked?' · ✅ sprawdzono':''}</div>`:''};
+const _kr=kidRow;kidRow=function(c,s){let h=_kr(c,s).replace('style="padding:8px 10px"','style="padding:8px 10px;flex-wrap:wrap"');const b=pickBadge(c.id);return b?h.replace(/<\/div>\s*$/,b+'</div>'):h};
+const _wy=wychodzi;wychodzi=function(id){_wy(id);const p=pickOf(id);if(!p)return;const n=document.getElementById('nowOut');if(n)n.insertAdjacentHTML('beforebegin',`<div class="card">${pickBadge(id)}<label class="chk"><input type="checkbox" id="idok">Sprawdzono dokument tożsamości (${esc(p.doc)})</label></div>`)};
+const _do=doOut;doOut=async function(id,manual){const p=pickOf(id),ch=document.getElementById('idok');if(p&&ch&&!ch.checked)return toast('Potwierdź sprawdzenie dokumentu osoby odbierającej');
+  if(p&&ch)await sb.rpc('staff_confirm_pickup',{tok:tok(),child:id,person_id:p.person_id,d:todayStr()}).then(()=>{},()=>{});await _do(id,manual);loadPick()};
+// karta dziecka: badge + lista osób upoważnionych (opiekunka: 4 cyfry; dyrektor: pełne + dodawanie)
+const PL={};async function loadPL(id){const r=await sb.rpc('staff_list_pickup',{tok:tok(),child:id});PL[id]=r.error?{err:1}:(r.data||[]);render()}
+async function sAddPick(id){const g=k=>document.getElementById(k).value.trim();const r=await sb.rpc('staff_add_pickup',{tok:tok(),child:id,first_name:g('sk1'),last_name:g('sk2'),doc_type:g('sk3'),doc_number:g('sk4')});toast(r.data?'Dodano ✓':'Nie dodano');loadPL(id)}
+async function sDelPick(id,pid){if(!confirm('Usunąć z listy?'))return;await sb.rpc('staff_remove_pickup',{tok:tok(),person_id:pid});loadPL(id)}
+const _dz=SCR.dziecko;SCR.dziecko=()=>{const r=_dz();const id=window._kid;if(!DB.test_children.find(x=>x.id===id))return r;r[2]=r[2].replace('<div class="ktabs">',pickBadge(id)+'<div class="ktabs">');
+  if((window._ktab||'dzien')==='profil'){const L=PL[id];if(L===undefined){PL[id]=null;setTimeout(()=>loadPL(id),0)}
+    r[2]+=`<div class="card"><div class="h1s">🚗 Osoby upoważnione do odbioru</div>${!L?'<div class="muted">Ładowanie…</div>':L.err?'<div class="muted">Czeka na sql/full_test.sql</div>':(L.map(p=>`<div class="mm">${esc(p.name)} · ${esc(DOCT[p.doc_type]||p.doc_type)} ${esc(p.doc)}${isDir()&&!isGuest()?` <button class="tbtn" onclick="sDelPick('${id}','${p.id}')">✕</button>`:''}</div>`).join('')||'<div class="muted">Brak.</div>')}
+    ${isDir()&&!isGuest()&&L&&!L.err?`<details><summary class="mm">➕ Dodaj osobę</summary><input id="sk1" placeholder="Imię"><input id="sk2" placeholder="Nazwisko"><select id="sk3">${Object.entries(DOCT).map(([k,n])=>`<option value="${k}">${n}</option>`).join('')}</select><input id="sk4" placeholder="Numer dokumentu" autocomplete="off"><button class="b2" onclick="sAddPick('${id}')">Dodaj</button></details>`:''}</div>`;
+    const n=NAMES[id];if(n&&n.full)r[2]+=`<div class="card"><div class="h1s">👤 Dane dziecka</div><div class="mm">${esc(n.full)}${n.birth_date?' · ur. '+dmy(n.birth_date):''}</div>${n.parents?`<div class="mm">Rodzice: ${esc(n.parents)}</div>`:''}</div>`}
+  return r};
+// start/odświeżanie personelu + czyszczenie pamięci przy wylogowaniu
+const _ko=koniec;koniec=async function(){PICK=[];NAMES={};window._namesLoaded=0;FB_MINE=null;LIC=null;P.pick=null;Object.keys(localStorage).filter(k=>/^zl_test_/.test(k)).forEach(k=>localStorage.removeItem(k));return _ko()};
+setInterval(()=>{if(S.code&&!isPar()&&document.visibilityState==='visible')loadPick()},60000);
+window.addEventListener('hashchange',()=>{if(S.code&&!isPar()&&!window._namesLoaded&&tok()){window._namesLoaded=1;loadNames();loadPick()}});
+
 const PRIV=()=>{Object.keys(localStorage).filter(k=>/^zl_test_/.test(k)).forEach(k=>localStorage.removeItem(k));DB={}};
-(async()=>{applyTheme();if(S.code&&S.role!=='rodzic'){await loadAll();Sync.subscribe()}else PRIV();route()})();
+(async()=>{applyTheme();if(S.code&&S.role!=='rodzic'){await loadAll();Sync.subscribe();window._namesLoaded=1;loadNames();loadPick()}else PRIV();route()})();
 </script></body></html>
