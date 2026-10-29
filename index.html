@@ -1155,7 +1155,7 @@ SCR.lista=()=>{const r=_lstOld();if(!LAV()||!Array.isArray(r)||typeof r[2]!=='st
   return [r[0],r[1],hero('☀️',g,'Przyjęcie dziecka – dzień dobry w żłobku!','hdr_lista')+dpill(plDate(todayStr()))+s]};
 
 // ==== FLAGI: ukrycie danych dzieci, podgląd ról (admin), informacje prawne (szkic) ====
-const CHILD_DATA_HIDDEN_FOR_STAFF=true; // UWAGA: tylko ukrycie w UI – dane nadal przychodzą z RPC (patrz sql/hide-children-staff proposal)
+const CHILD_DATA_HIDDEN_FOR_STAFF=false; // wyłączone do końca testów (decyzja właściciela 29.10) // UWAGA: tylko ukrycie w UI – dane nadal przychodzą z RPC (patrz sql/hide-children-staff proposal)
 const LEGAL_PAGE_ENABLED=false; // strona prawna NIEAKTYWNA; admin może ją podejrzeć (podgląd szkicu)
 const canSeeChildren=()=>isAdm()||!CHILD_DATA_HIDDEN_FOR_STAFF;
 const isRealAdm=()=>S.realRole==='admin';
