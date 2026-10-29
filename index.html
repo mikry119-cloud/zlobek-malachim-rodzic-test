@@ -1205,20 +1205,31 @@ async function dietSave(){const id=pChildId();if(!id)return toast('Brak dziecka'
   const d=pDietVal();const card=`<button class="card krow" style="width:100%;text-align:left" onclick="dietSheet()"><span>🥗 <b>Dieta:</b> ${esc(d||'zwykła – dotknij, aby ustawić')}</span><span class="sp"></span>✎</button>`;
   const i=r[2].indexOf('<div class="sec2">Karta dnia');r[2]=i>=0?r[2].slice(0,i)+card+r[2].slice(i):r[2]+card;return r}}
 // --- uprawnienia: dodawanie/usuwanie dzieci tylko dyrektor/admin; opiekunki tylko zmiana pseudonimu ---
-const KIER_KEY='kierownicy';const kierList=()=>{try{return JSON.parse(((DB.test_settings||[]).find(x=>x.key===KIER_KEY)||{}).value||'[]')}catch(e){return []}};
-const isKier=()=>{const l=(SESS()||{}).login;return !!l&&!isPar()&&kierList().includes(l)};
-const canManageChildren=()=>isAdm()||(isDir()&&!isGuest())||isKier(); // dyrektor/admin zawsze true – delegacja niczego im nie odbiera
-const canManageKids=canManageChildren;
-async function setKier(login,on){if(!(isAdm()||(isDir()&&!isGuest())))return toast('Tylko dyrektor');const l=kierList().filter(x=>x!==login);if(on)l.push(login);await Sync.upsert('test_settings',{key:KIER_KEY,value:JSON.stringify(l)});toast(on?'Nadano: kierownik':'Odebrano: kierownik');render()}
-{const _u=scrUpr;scrUpr=SCR.uprawnienia=function(){const r=_u.apply(this,arguments);if(!Array.isArray(r))return r;const k=kierList();
-  r[2]='<div class="banner">👔 <b>Kierownik</b> – może dodawać, edytować i usuwać dzieci (jak dyrektorka). Dyrektorka zachowuje wszystkie swoje uprawnienia.</div>'+r[2].replace(/(<div class="card acc" data-login="([^"]*)">[\s\S]*?)(<\/label><\/div>)/g,(m,a,l,c)=>a+c.slice(0,-6)+`<label class="chk"><input type="checkbox" class="kier" ${k.includes(l.replace(/&amp;/g,'&'))?'checked':''} onchange="setKier('${l}',this.checked)">Kierownik (zarządzanie dziećmi)</label></div>`);return r}}
-{const st=document.createElement('style');st.textContent='body.nokm .kid .edit,body.nokm button[aria-label="Zmień imię"],body.nokm #addKid,body.nokm #delKid{display:none!important}';document.head.appendChild(st);
-  const _rd=render;render=function(){document.body.classList.toggle('nokm',!canManageChildren());return _rd.apply(this,arguments)}}
-{const _rk=renKid;renKid=function(){if(!canManageChildren())return toast('Dzieci edytuje tylko dyrektor lub kierownik');return _rk.apply(this,arguments)}}
+const KIER_KEY='kierownicy';
+const KPERMS=[['dzieci_dodaj','Dodawanie dzieci'],['dzieci_edytuj','Edycja dzieci'],['dzieci_usun','Usuwanie dzieci'],['personel','Personel / grupy'],['ustawienia','Ustawienia'],['raporty','Raporty / statystyki'],['funkcje','Włączanie funkcji'],['kierownik_nadaj','Nadawanie roli kierownika']];
+const kierMap=()=>{let v;try{v=JSON.parse(((DB.test_settings||[]).find(x=>x.key===KIER_KEY)||{}).value||'{}')}catch(e){v={}}
+  if(Array.isArray(v)){const m={};v.forEach(l=>m[l]=['dzieci_dodaj','dzieci_edytuj','dzieci_usun']);return m}return v&&typeof v==='object'?v:{}}; // migracja starej listy
+const isBoss=()=>isAdm()||(isDir()&&!isGuest());
+const isKier=()=>{const l=(SESS()||{}).login;return !!l&&!isPar()&&Array.isArray(kierMap()[l])&&kierMap()[l].length>0};
+const can=perm=>{if(isBoss())return true;const l=(SESS()||{}).login;if(!l||isPar())return false;return (kierMap()[l]||[]).includes(perm)}; // dyrektor/admin zawsze true
+const canManageChildren=()=>can('dzieci_dodaj')||can('dzieci_edytuj')||can('dzieci_usun');
+const canManageKids=()=>can('dzieci_dodaj');
+async function setKierPerms(login,perms){if(!can('kierownik_nadaj'))return toast('Brak uprawnień');const m=kierMap();if(perms.length)m[login]=perms;else delete m[login];
+  await Sync.upsert('test_settings',{key:KIER_KEY,value:JSON.stringify(m)});toast(perms.length?'Zapisano uprawnienia kierownika':'Odebrano rolę kierownika');render()}
+function kierForm(login){if(!can('kierownik_nadaj'))return toast('Brak uprawnień');const cur=kierMap()[login]||[];
+  sheet(`<div class="h1s">👔 Kierownik: ${esc(login)}</div><div class="hint">Dyrektorka zachowuje wszystkie swoje uprawnienia.</div>
+  <label class="chk"><input type="checkbox" id="kall" ${cur.length===KPERMS.length?'checked':''} onchange="document.querySelectorAll('[name=kp]').forEach(x=>x.checked=this.checked)"><b>Wszystkie</b></label>
+  ${KPERMS.map(([k,n])=>`<label class="chk"><input type="checkbox" name="kp" value="${k}" ${cur.includes(k)?'checked':''} onchange="kall.checked=[...document.querySelectorAll('[name=kp]')].every(x=>x.checked)">${n}</label>`).join('')}
+  <button class="b1" onclick="const p=[...document.querySelectorAll('[name=kp]:checked')].map(x=>x.value);closeM();setKierPerms('${esc(login)}',p)">Zapisz</button><button class="b2" onclick="closeM()">Anuluj</button>`)}
+{const _u=scrUpr;scrUpr=SCR.uprawnienia=function(){const r=_u.apply(this,arguments);if(!Array.isArray(r))return r;const m=kierMap();
+  r[2]='<div class="banner">👔 <b>Kierownik</b> – dyrektorka wybiera, które uprawnienia przekazuje. Dyrektorka zachowuje wszystkie swoje uprawnienia.</div>'+r[2].replace(/(<div class="card acc" data-login="([^"]*)">[\s\S]*?)(<\/label><\/div>)/g,(x,a,l,c)=>{const pl=m[l.replace(/&amp;/g,'&')]||[];return a+'</label>'+(can('kierownik_nadaj')?`<button class="b2" onclick="kierForm('${l}')">👔 Kierownik: ${pl.length?(pl.length===KPERMS.length?'wszystkie':pl.length+' upr.'):'nie'}</button>`:'')+'</div>'});return r}}
+{const st=document.createElement('style');st.textContent='body.noked .kid .edit,body.noked button[aria-label="Zmień imię"],body.noadd #addKid,body.nodel #delKid{display:none!important}';document.head.appendChild(st);
+  const _rd=render;render=function(){const B=document.body.classList;B.toggle('noked',!can('dzieci_edytuj'));B.toggle('noadd',!can('dzieci_dodaj'));B.toggle('nodel',!can('dzieci_usun'));return _rd.apply(this,arguments)}}
+{const _rk=renKid;renKid=function(){if(!can('dzieci_edytuj'))return toast('Dzieci edytuje tylko dyrektor lub kierownik');return _rk.apply(this,arguments)}}
 {const _lb=listBody;listBody=function(g){let h=_lb.apply(this,arguments);if(typeof h!=='string')return h;h=h.replace(/<button class="b[12][^"]*" id="addKid"[^>]*>[\s\S]*?<\/button>/g,'');
   return canManageKids()?h+`<button class="b1" id="addKid" style="width:100%;margin-top:10px" onclick="kidForm(null,'${g}')">＋ Dodaj dziecko</button>`:h}}
-{const _kf=kidForm;kidForm=function(){if(!canManageChildren())return toast('Dzieci edytuje tylko dyrektor lub kierownik');return _kf.apply(this,arguments)}}
-{const _sk=saveKid;saveKid=function(){if(!canManageChildren())return toast('Dzieci edytuje tylko dyrektor lub kierownik');return _sk.apply(this,arguments)}}
-{const _dk=delKid;delKid=function(){if(!canManageKids())return toast('Dzieci usuwa tylko dyrektor lub kierownik');return _dk.apply(this,arguments)}}
-{const _rm=Sync.remove.bind(Sync);Sync.remove=function(t){if(t==='test_children'&&!canManageKids()){toast('Dzieci usuwa tylko dyrektor lub kierownik');return Promise.resolve()}return _rm.apply(Sync,arguments)}}
+{const _kf=kidForm;kidForm=function(id){if(!can(id?'dzieci_edytuj':'dzieci_dodaj'))return toast('Brak uprawnień do '+(id?'edycji':'dodawania')+' dzieci');return _kf.apply(this,arguments)}}
+{const _sk=saveKid;saveKid=function(id){if(!can(id?'dzieci_edytuj':'dzieci_dodaj'))return toast('Brak uprawnień');return _sk.apply(this,arguments)}}
+{const _dk=delKid;delKid=function(){if(!can('dzieci_usun'))return toast('Dzieci usuwa tylko dyrektor lub kierownik');return _dk.apply(this,arguments)}}
+{const _rm=Sync.remove.bind(Sync);Sync.remove=function(t){if(t==='test_children'&&!can('dzieci_usun')){toast('Dzieci usuwa tylko dyrektor lub kierownik');return Promise.resolve()}return _rm.apply(Sync,arguments)}}
 </script><footer style="text-align:center;font-size:9px;opacity:.45;padding:4px 0 calc(4px + env(safe-area-inset-bottom))">Tuptuś © 2026 Wydawnictwo Malachi</footer></body></html>
