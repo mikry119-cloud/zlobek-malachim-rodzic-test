@@ -1232,4 +1232,34 @@ function kierForm(login){if(!can('kierownik_nadaj'))return toast('Brak uprawnie�
 {const _sk=saveKid;saveKid=function(id){if(!can(id?'dzieci_edytuj':'dzieci_dodaj'))return toast('Brak uprawnień');return _sk.apply(this,arguments)}}
 {const _dk=delKid;delKid=function(){if(!can('dzieci_usun'))return toast('Dzieci usuwa tylko dyrektor lub kierownik');return _dk.apply(this,arguments)}}
 {const _rm=Sync.remove.bind(Sync);Sync.remove=function(t){if(t==='test_children'&&!can('dzieci_usun')){toast('Dzieci usuwa tylko dyrektor lub kierownik');return Promise.resolve()}return _rm.apply(Sync,arguments)}}
+// ==== Loginy rodziców (can('rodzic_login')) – hasło pokazywane raz, nigdy nie zapisywane ====
+KPERMS.push(['rodzic_login','Loginy rodziców']);
+const slugPL=s=>String(s||'dziecko').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/ł/g,'l').replace(/[^a-z0-9]+/g,'').slice(0,16)||'dziecko';
+const genParPw=(n=12)=>{const A='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#%*-_';const lim=256-256%A.length;let o='';while(o.length<n){const b=crypto.getRandomValues(new Uint8Array(1))[0];if(b<lim)o+=A[b%A.length]}return o};
+const parentLoginOf=cid=>((DB.test_parent_child||[]).find(x=>String(x.child_id)===String(cid))||{}).login||null;
+async function pRpc(fn,args){if(!sb)return {e:'Brak połączenia'};const {data,error}=await sb.rpc(fn,{tok:tok(),...args});return error?{e:error.message}:{d:data}}
+const NEEDDB='Wymaga aktualizacji bazy (patrz rodzic-login.sql)';
+function pwShow(login,pw){sheet(`<div class="h1s">🔑 Login rodzica</div><div class="mm">Login: <b id="plg">${esc(login)}</b></div><div class="mm">Hasło: <b id="ppw" style="font-family:monospace;font-size:1.2em">${esc(pw)}</b></div>
+ <button class="b2" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById('plg').textContent+'  '+document.getElementById('ppw').textContent).then(()=>toast('Skopiowano'))">📋 Kopiuj</button>
+ <div class="banner pz">Przekaż hasło rodzicowi osobiście lub telefonicznie. Nie będzie ponownie pokazane.</div><button class="b1" onclick="closeM()">Zamknij</button>`)}
+async function parentLogin(cid){if(!can('rodzic_login'))return toast('Brak uprawnień');const c=kidById(cid);if(!c)return;const ex=parentLoginOf(cid);
+  if(ex)return sheet(`<div class="h1s">👪 ${esc(c.pseudonym)}</div><div class="mm">Login rodzica: <b>${esc(ex)}</b></div><button class="b1" onclick="parentNewPw('${esc(ex)}')">🔑 Nowe hasło</button><button class="b2" onclick="closeM()">Zamknij</button>`);
+  const used=new Set([...(DB.test_accounts||[]).map(a=>a.login),...(DB.test_parent_child||[]).map(a=>a.login)]);let login;for(let i=0;i<50;i++){const nn=String(crypto.getRandomValues(new Uint8Array(1))[0]%90+10);login='r.'+slugPL(c.pseudonym)+'.'+nn;if(!used.has(login))break}
+  const pw=genParPw();toast('Tworzę konto…');
+  let r=await pRpc('parent_login_create',{child:cid,login,password:pw}); // proponowana dedykowana RPC
+  if(r.e&&/function|schema cache|PGRST202/i.test(r.e)){ // fallback: istniejące RPC
+    r=await pRpc('zl_upsert',{t:'test_accounts',r:{login,role:'rodzic',display_name:'Rodzic '+c.pseudonym,grp:c.grp,active:true}});
+    if(!r.e)r=await pRpc('reset_password',{target:login,new_password:pw});
+    if(!r.e&&r.d===false)r={e:'reset_password odrzucone'};
+    if(!r.e)r=await pRpc('zl_upsert',{t:'test_parent_child',r:{login,child_id:cid}});
+    if(r.e){console.warn('parentLogin: błąd RPC');return sheet(`<div class="h1s">⚠️ ${NEEDDB}</div><div class="mm">${esc(r.e)}</div><button class="b1" onclick="closeM()">OK</button>`)}}
+  else if(r.e)return sheet(`<div class="h1s">⚠️ Błąd</div><div class="mm">${esc(r.e)}</div><button class="b1" onclick="closeM()">OK</button>`);
+  DB.test_parent_child=[...(DB.test_parent_child||[]).filter(x=>x.login!==login),{login,child_id:cid}];pwShow(login,pw)}
+async function parentNewPw(login){if(!can('rodzic_login'))return toast('Brak uprawnień');const pw=genParPw();let r=await pRpc('parent_login_reset',{login,password:pw});
+  if(r.e&&/function|schema cache|PGRST202/i.test(r.e))r=await pRpc('reset_password',{target:login,new_password:pw});
+  if(r.e||r.d===false)return sheet(`<div class="h1s">⚠️ ${NEEDDB}</div><div class="mm">${esc(r.e||'odrzucone')}</div><button class="b1" onclick="closeM()">OK</button>`);pwShow(login,pw)}
+{const _sd=SCR.dziecko;SCR.dziecko=function(){const r=_sd.apply(this,arguments);const id=window._kid;if(!id||!canSeeChildren()||!can('rodzic_login')||!Array.isArray(r)||typeof r[2]!=='string'||!kidById(id))return r;
+  const btn=`<button class="b2" id="genPar" onclick="parentLogin('${id}')">🔑 ${parentLoginOf(id)?'Login rodzica: '+esc(parentLoginOf(id)):'Generuj login dla rodzica'}</button>`;const i=r[2].indexOf('<div class="ktabs">');r[2]=i>=0?r[2].slice(0,i)+btn+r[2].slice(i):r[2]+btn;return r}}
+{const _kr=kidRow;kidRow=function(c){const h=_kr.apply(this,arguments);if(!canSeeChildren()||!can('rodzic_login')||typeof h!=='string')return h;const i=h.lastIndexOf('</div>');
+  return h.slice(0,i)+`<button class="tbtn" title="Generuj login dla rodzica" aria-label="Generuj login dla rodzica" onclick="event.stopPropagation();parentLogin('${c.id}')">🔑</button>`+h.slice(i)}}
 </script><footer style="text-align:center;font-size:9px;opacity:.45;padding:4px 0 calc(4px + env(safe-area-inset-bottom))">Tuptuś © 2026 Wydawnictwo Malachi</footer></body></html>
